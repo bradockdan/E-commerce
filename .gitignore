@@ -1,0 +1,45 @@
+# Arquivos de ambiente virtual
+venv/
+env/
+.venv/
+
+# Arquivos de IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Arquivos de sistema
+.DS_Store
+Thumbs.db
+
+# Arquivos de cache do Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribuições e builds
+dist/
+build/
+*.egg-info/
+
+# Arquivos de banco de dados
+*.db
+*.sqlite3
+
+# Arquivos de log
+*.log
+
+# Arquivos temporários
+*.tmp
+*.temp
+
+# Arquivos de configuração local
+config.local.py
+settings.local.py
+
+# Jupyter notebooks de checkpoint
+.ipynb_checkpoints/
+
+# Arquivos gerados pelo Colab
+sample_data/

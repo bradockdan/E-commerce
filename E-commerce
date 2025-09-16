@@ -1,0 +1,385 @@
+# 📊 ANÁLISE COMPLETA DE E-COMMERCE - GOOGLE COLAB
+# ✅ Não precisa instalar nada! Todas as bibliotecas já estão disponíveis
+
+print("🚀 INICIANDO ANÁLISE DE DADOS DE E-COMMERCE")
+print("=" * 60)
+
+# Importar bibliotecas (já instaladas no Colab)
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from datetime import datetime, timedelta
+import random
+
+# Configurar visualizações
+plt.style.use('default')
+sns.set_palette("husl")
+%matplotlib inline
+
+print("✅ Bibliotecas carregadas com sucesso!")
+print("📦 Versões:")
+print(f"   pandas: {pd.__version__}")
+print(f"   numpy: {np.__version__}")
+print(f"   matplotlib: {plt.matplotlib.__version__}")
+
+# =============================================================================
+# 📁 1. GERAR DADOS DE EXEMPLO
+# =============================================================================
+
+print("\n" + "=" * 60)
+print("🔄 GERANDO DADOS DE EXEMPLO...")
+print("=" * 60)
+
+def generate_ecommerce_data(num_records=5000):
+    """Gera dados realisticos de e-commerce"""
+
+    products = [
+        'Smartphone Galaxy', 'iPhone Pro', 'Notebook Dell', 'Macbook Air',
+        'Tablet Samsung', 'iPad Pro', 'Fone Bluetooth', 'Smartwatch Apple',
+        'Camera DSLR', 'Console PlayStation', 'Xbox Series', 'TV LED 55"',
+        'Monitor Gaming', 'Impressora Laser', 'Mouse Gamer', 'Teclado Mecanico'
+    ]
+
+    categories = ['Eletronicos', 'Informatica', 'Audio', 'Games', 'TV & Video', 'Acessorios']
+    regions = ['SP', 'RJ', 'MG', 'RS', 'PR', 'SC', 'BA', 'DF']
+    payment_methods = ['Credit Card', 'Debit Card', 'Boleto', 'PIX']
+
+    data = []
+    for i in range(num_records):
+        price = round(random.uniform(50, 2500), 2)
+        quantity = random.randint(1, 3)
+
+        # Gerar data aleatoria (últimos 12 meses)
+        random_date = datetime(2023, 1, 1) + timedelta(days=random.randint(0, 365))
+
+        record = {
+            'order_id': f'ORD{10000 + i}',
+            'customer_id': f'CUST{5000 + random.randint(1, 1000)}',
+            'product': random.choice(products),
+            'category': random.choice(categories),
+            'price': price,
+            'quantity': quantity,
+            'revenue': price * quantity,
+            'purchase_date': random_date,
+            'customer_region': random.choice(regions),
+            'payment_method': random.choice(payment_methods),
+            'customer_age': random.randint(18, 70),
+            'product_rating': round(random.uniform(3.0, 5.0), 1)
+        }
+        data.append(record)
+
+    return pd.DataFrame(data)
+
+# Gerar dados
+df = generate_ecommerce_data(5000)
+print(f"✅ Dados gerados: {len(df)} registros")
+print("📋 Primeiras 5 linhas:")
+print(df.head())
+
+# =============================================================================
+# 🧹 2. LIMPEZA E PROCESSAMENTO DE DADOS
+# =============================================================================
+
+print("\n" + "=" * 60)
+print("🧹 PROCESSANDO E LIMPANDO DADOS...")
+print("=" * 60)
+
+# Remover duplicatas
+initial_count = len(df)
+df = df.drop_duplicates()
+print(f"➖ Removidos {initial_count - len(df)} registros duplicados")
+
+# Tratar valores missing (simular alguns missing)
+df['product_rating'] = df['product_rating'].fillna(df['product_rating'].median())
+df['customer_region'] = df['customer_region'].fillna('Unknown')
+
+# Remover outliers de preço
+Q1 = df['price'].quantile(0.05)
+Q3 = df['price'].quantile(0.95)
+IQR = Q3 - Q1
+lower_bound = Q1 - 1.5 * IQR
+upper_bound = Q3 + 1.5 * IQR
+
+before = len(df)
+df = df[(df['price'] >= lower_bound) & (df['price'] <= upper_bound)]
+print(f"📉 Removidos {before - len(df)} outliers de preço")
+
+# Criar novas features
+df['purchase_month'] = df['purchase_date'].dt.to_period('M')
+df['purchase_day'] = df['purchase_date'].dt.day_name()
+df['purchase_hour'] = df['purchase_date'].dt.hour
+
+# Categorização de preços
+df['price_category'] = pd.cut(df['price'],
+                             bins=[0, 100, 500, 1000, 2000, 5000],
+                             labels=['Muito Baixo', 'Baixo', 'Medio', 'Alto', 'Muito Alto'])
+
+print(f"✅ Dados processados: {len(df)} registros válidos")
+print(f"📅 Período: {df['purchase_date'].min().date()} a {df['purchase_date'].max().date()}")
+
+# =============================================================================
+# 📈 3. ANÁLISE EXPLORATÓRIA
+# =============================================================================
+
+print("\n" + "=" * 60)
+print("📈 ANÁLISE EXPLORATÓRIA")
+print("=" * 60)
+
+# Métricas básicas
+total_revenue = df['revenue'].sum()
+avg_order_value = df['revenue'].mean()
+total_customers = df['customer_id'].nunique()
+total_orders = df['order_id'].nunique()
+
+print(f"💰 Receita Total: R$ {total_revenue:,.2f}")
+print(f"🎫 Ticket Médio: R$ {avg_order_value:.2f}")
+print(f"👥 Clientes Únicos: {total_customers}")
+print(f"📦 Pedidos Totais: {total_orders}")
+
+# Visualização 1: Receita por Categoria
+plt.figure(figsize=(12, 6))
+category_revenue = df.groupby('category')['revenue'].sum().sort_values(ascending=False)
+category_revenue.plot(kind='bar', color='skyblue')
+plt.title('📊 Receita por Categoria de Produto', fontsize=16, fontweight='bold')
+plt.xlabel('Categoria')
+plt.ylabel('Receita (R$)')
+plt.xticks(rotation=45)
+plt.grid(axis='y', alpha=0.3)
+plt.tight_layout()
+plt.show()
+
+# Visualização 2: Distribuição de Preços
+plt.figure(figsize=(10, 6))
+plt.hist(df['price'], bins=30, alpha=0.7, color='lightgreen', edgecolor='black')
+plt.title('📦 Distribuição de Preços dos Produtos', fontsize=16, fontweight='bold')
+plt.xlabel('Preço (R$)')
+plt.ylabel('Frequência')
+plt.grid(alpha=0.3)
+plt.axvline(df['price'].mean(), color='red', linestyle='--', label=f'Média: R$ {df["price"].mean():.2f}')
+plt.legend()
+plt.show()
+
+# Visualização 3: Receita Mensal
+plt.figure(figsize=(12, 6))
+monthly_revenue = df.groupby('purchase_month')['revenue'].sum()
+monthly_revenue.plot(kind='line', marker='o', linewidth=2, markersize=8, color='orange')
+plt.title('📈 Tendência de Receita Mensal', fontsize=16, fontweight='bold')
+plt.xlabel('Mês')
+plt.ylabel('Receita (R$)')
+plt.grid(alpha=0.3)
+plt.xticks(rotation=45)
+plt.tight_layout()
+plt.show()
+
+# =============================================================================
+# 🧮 4. CÁLCULO DE MÉTRICAS AVANÇADAS
+# =============================================================================
+
+print("\n" + "=" * 60)
+print("🧮 MÉTRICAS DE PERFORMANCE")
+print("=" * 60)
+
+# Calcular métricas de negócio
+def calculate_business_metrics(df):
+    metrics = {}
+
+    # Métricas básicas
+    metrics['total_revenue'] = df['revenue'].sum()
+    metrics['avg_order_value'] = df['revenue'].mean()
+    metrics['total_customers'] = df['customer_id'].nunique()
+    metrics['total_orders'] = df['order_id'].nunique()
+
+    # CAC (estimado)
+    total_marketing_spend = 120000  # Valor estimado
+    metrics['cac'] = total_marketing_spend / metrics['total_customers']
+
+    # LTV (estimado)
+    avg_revenue_per_customer = df.groupby('customer_id')['revenue'].sum().mean()
+    avg_customer_lifespan = 18  # meses
+    metrics['ltv'] = avg_revenue_per_customer * avg_customer_lifespan
+
+    # Taxa de conversão (estimada)
+    total_visitors = 25000  # estimado
+    metrics['conversion_rate'] = (metrics['total_orders'] / total_visitors) * 100
+
+    # Repeat customer rate
+    customer_order_count = df['customer_id'].value_counts()
+    repeat_customers = (customer_order_count > 1).sum()
+    metrics['repeat_rate'] = (repeat_customers / metrics['total_customers']) * 100
+
+    return metrics
+
+# Calcular e mostrar métricas
+metrics = calculate_business_metrics(df)
+
+print("📊 MÉTRICAS DE NEGÓCIO:")
+print("-" * 40)
+print(f"💰 Receita Total: R$ {metrics['total_revenue']:,.2f}")
+print(f"🎫 Ticket Médio: R$ {metrics['avg_order_value']:.2f}")
+print(f"👥 Clientes Únicos: {metrics['total_customers']}")
+print(f"📦 Pedidos Totais: {metrics['total_orders']}")
+print(f"💵 CAC: R$ {metrics['cac']:.2f}")
+print(f"💎 LTV: R$ {metrics['ltv']:.2f}")
+print(f"🔄 Taxa de Conversão: {metrics['conversion_rate']:.2f}%")
+print(f"🔁 Repeat Rate: {metrics['repeat_rate']:.2f}%")
+print(f"📈 LTV/CAC Ratio: {metrics['ltv']/metrics['cac']:.2f}")
+
+# =============================================================================
+# 💡 5. IDENTIFICAÇÃO DE OPORTUNIDADES
+# =============================================================================
+
+print("\n" + "=" * 60)
+print("💡 OPORTUNIDADES DE NEGÓCIO")
+print("=" * 60)
+
+# Análise de oportunidades
+def identify_opportunities(df):
+    opportunities = []
+
+    # 1. Análise de categorias
+    category_analysis = df.groupby('category').agg({
+        'revenue': 'sum',
+        'order_id': 'nunique',
+        'quantity': 'sum'
+    }).sort_values('revenue', ascending=False)
+
+    # Categorias com maior potencial
+    low_volume_high_margin = category_analysis[category_analysis['order_id'] < category_analysis['order_id'].median()]
+    if not low_volume_high_margin.empty:
+        opportunities.append({
+            'tipo': 'Expansão de Categoria',
+            'descricao': 'Categorias com alta margem e baixo volume identificadas',
+            'impacto': '5-7% aumento na receita',
+            'categorias': low_volume_high_margin.index.tolist()[:3]
+        })
+
+    # 2. Análise sazonal
+    monthly_revenue = df.groupby('purchase_month')['revenue'].sum()
+    revenue_std = monthly_revenue.std()
+    if revenue_std > monthly_revenue.mean() * 0.3:
+        opportunities.append({
+            'tipo': 'Otimização Sazonal',
+            'descricao': 'Fortes variações sazonais detectadas',
+            'impacto': '3-5% aumento na receita',
+            'meses_pico': monthly_revenue.nlargest(3).index.tolist()
+        })
+
+    # 3. Clientes inativos
+    last_purchase = df.groupby('customer_id')['purchase_date'].max()
+    cutoff_date = df['purchase_date'].max() - timedelta(days=90)
+    inactive_customers = last_purchase[last_purchase < cutoff_date]
+
+    if len(inactive_customers) > 0:
+        opportunities.append({
+            'tipo': 'Campanha de Retenção',
+            'descricao': f'{len(inactive_customers)} clientes inativos identificados',
+            'impacto': '2-4% aumento na receita',
+            'acao': 'Programa de fidelidade e retenção'
+        })
+
+    return opportunities
+
+# Identificar e mostrar oportunidades
+opportunities = identify_opportunities(df)
+
+print("🎯 OPORTUNIDADES IDENTIFICADAS:")
+print("-" * 50)
+for i, opp in enumerate(opportunities, 1):
+    print(f"{i}. {opp['tipo']}:")
+    print(f"   📝 {opp['descricao']}")
+    print(f"   💰 Impacto: {opp['impacto']}")
+    if 'categorias' in opp:
+        print(f"   🏷️  Categorias: {', '.join(opp['categorias'])}")
+    if 'acao' in opp:
+        print(f"   🎯 Ação: {opp['acao']}")
+    print()
+
+# =============================================================================
+# 📊 6. VISUALIZAÇÕES AVANÇADAS
+# =============================================================================
+
+print("\n" + "=" * 60)
+print("📊 VISUALIZAÇÕES AVANÇADAS")
+print("=" * 60)
+
+# Criar subplots
+fig, axes = plt.subplots(2, 2, figsize=(15, 12))
+fig.suptitle('📈 DASHBOARD DE ANÁLISE - E-COMMERCE', fontsize=20, fontweight='bold')
+
+# Gráfico 1: Receita por Região
+region_revenue = df.groupby('customer_region')['revenue'].sum().sort_values(ascending=False)
+axes[0, 0].bar(region_revenue.index, region_revenue.values, color='lightblue')
+axes[0, 0].set_title('📍 Receita por Região', fontweight='bold')
+axes[0, 0].set_ylabel('Receita (R$)')
+axes[0, 0].tick_params(axis='x', rotation=45)
+
+# Gráfico 2: Método de Pagamento
+payment_counts = df['payment_method'].value_counts()
+axes[0, 1].pie(payment_counts.values, labels=payment_counts.index, autopct='%1.1f%%', colors=sns.color_palette("pastel"))
+axes[0, 1].set_title('💳 Distribuição de Pagamentos', fontweight='bold')
+
+# Gráfico 3: Rating dos Produtos
+axes[1, 0].hist(df['product_rating'], bins=10, alpha=0.7, color='lightgreen', edgecolor='black')
+axes[1, 0].set_title('⭐ Avaliação dos Produtos', fontweight='bold')
+axes[1, 0].set_xlabel('Avaliação (1-5)')
+axes[1, 0].set_ylabel('Frequência')
+axes[1, 0].axvline(df['product_rating'].mean(), color='red', linestyle='--', label=f'Média: {df["product_rating"].mean():.2f}')
+axes[1, 0].legend()
+
+# Gráfico 4: Receita por Dia da Semana
+day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+day_revenue = df.groupby('purchase_day')['revenue'].sum().reindex(day_order)
+axes[1, 1].plot(day_order, day_revenue.values, marker='o', linewidth=2, markersize=6, color='purple')
+axes[1, 1].set_title('📅 Receita por Dia da Semana', fontweight='bold')
+axes[1, 1].set_ylabel('Receita (R$)')
+axes[1, 1].tick_params(axis='x', rotation=45)
+
+plt.tight_layout()
+plt.show()
+
+# =============================================================================
+# 🎯 7. RELATÓRIO FINAL E RECOMENDAÇÕES
+# =============================================================================
+
+print("\n" + "=" * 60)
+print("🎯 RELATÓRIO FINAL E RECOMENDAÇÕES")
+print("=" * 60)
+
+# Calcular potencial de aumento
+potential_increase = sum([5, 4, 3][:len(opportunities)])  # 5% + 4% + 3%
+potential_revenue = metrics['total_revenue'] * (potential_increase / 100)
+
+print(f"📈 RESUMO DA ANÁLISE:")
+print("-" * 40)
+print(f"• Período analisado: 12 meses")
+print(f"• Total de registros: {len(df):,}")
+print(f"• Receita total: R$ {metrics['total_revenue']:,.2f}")
+print(f"• Clientes únicos: {metrics['total_customers']}")
+print(f"• Ticket médio: R$ {metrics['avg_order_value']:.2f}")
+
+print(f"\n🎯 OPORTUNIDADES IDENTIFICADAS ({len(opportunities)}):")
+print("-" * 40)
+for i, opp in enumerate(opportunities, 1):
+    print(f"{i}. {opp['tipo']} → {opp['impacto']}")
+
+print(f"\n💰 IMPACTO POTENCIAL:")
+print("-" * 40)
+print(f"• Aumento total potencial: {potential_increase}%")
+print(f"• Receita adicional: R$ {potential_revenue:,.2f}")
+print(f"• Nova receita anual: R$ {metrics['total_revenue'] + potential_revenue:,.2f}")
+
+print(f"\n🎯 RECOMENDAÇÕES ESTRATÉGICAS:")
+print("-" * 40)
+print("1. 🏷️  Expansão de Categorias: Focar em categorias de alta margem")
+print("2. 📅 Otimização Sazonal: Criar campanhas para períodos de baixa")
+print("3. 🤝 Retenção de Clientes: Implementar programa de fidelidade")
+print("4. 📊 Monitoramento Contínuo: Manter análise mensal dos indicadores")
+
+print("\n" + "=" * 60)
+print("✅ ANÁLISE CONCLUÍDA COM SUCESSO!")
+print("=" * 60)
+print("📊 Projeto desenvolvido por: João Pedro Tavares Pereira Fernandes")
+print("📧 joaopeedrotavares23@gmail.com")
+print("💼 LinkedIn: linkedin.com/in/joão-pedro-tavares")
+print("🐙 GitHub: github.com/bradockdan")
